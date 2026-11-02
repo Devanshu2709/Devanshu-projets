@@ -1,4 +1,6 @@
-# Incident investigation agent
+# SentinelFlow AI
+
+AI-assisted cloud incident investigation and file-security workflows.
 
 A local portfolio prototype with optional local LLM, lexical RAG and a minimal stdio MCP tool server. Python standard library only.
 
