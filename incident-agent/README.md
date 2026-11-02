@@ -1,6 +1,10 @@
 # Incident investigation agent
 
-A local portfolio prototype, using simulated incidents. Python standard library only.
+A local portfolio prototype with optional local LLM, lexical RAG and a minimal stdio MCP tool server. Python standard library only.
+
+## File upload security demo
+
+Run `python file_guard.py` to demonstrate quarantine -> simulated GuardDuty result -> approved storage or blocked review, with SQLite metadata and audit records. See [FILE_SECURITY.md](FILE_SECURITY.md) for implementation, limits and the planned AWS deployment. This is a routing prototype, not a malware scanner. It does not call AWS or detect malware itself.
 
 ## Run
 
@@ -28,7 +32,29 @@ python agent.py --scenario database --model YOUR_INSTALLED_MODEL
 Uses the documented local `/api/generate` endpoint with JSON output and a 20-second timeout:
 https://docs.ollama.com/api/generate
 
-Without a model, the demo uses explicit rules, not an LLM. With a model, evidence collection and runbook selection remain deterministic; the LLM produces an advisory summary. This is a bounded investigation workflow, not autonomous cloud remediation.
+Without a model, the demo uses explicit rules, not an LLM. With a model, the investigator retrieves local runbook documents and generates a summary plus advisory solution suggestions. This is a bounded investigation workflow, not autonomous cloud remediation.
+
+## LLM + RAG solution suggestions
+
+```powershell
+python agent.py --scenario database --model llama3.2:1b
+```
+
+Add or edit Markdown files under `knowledge/` to extend the knowledge base. Retrieval ranks documents by lexical token overlap; it does not use embeddings or a vector database. All three current runbooks can be returned as context. Documents are loaded fresh per investigation, with content hashes recorded. Generated suggestions include an action, rationale, verification step and document ID citations. Citation IDs are validated; semantic faithfulness still needs human review. Recommendations are never executed. Unknown/conflicting evidence suppresses model mitigation suggestions. A timeout, invalid JSON or invalid citation falls back to deterministic checks.
+
+The local Llama 3.2 1B model is intended for a lightweight demonstration, not production-grade incident judgment. The integration uses Ollama structured JSON output. Local model requests have a 90-second timeout; usage counts and elapsed time appear in traces.
+
+Flow: evidence -> hypothesis -> runbook retrieval -> local LLM -> output validation -> human-review report. MCP is an optional access interface, not a replacement for RAG or an LLM.
+
+## MCP client configuration
+
+Start the minimal local stdio server with `python mcp_server.py`. In a compatible MCP client's server configuration, use your absolute Python executable as `command` and the absolute path to `mcp_server.py` as the sole `args` entry. Set `OLLAMA_MODEL=llama3.2:1b` in that server's environment to enable AI recommendations. The server is not automatically registered in any client.
+
+Exposed tools:
+- `search_runbooks`: returns matching local documents.
+- `investigate_dummy_incident`: accepts database, memory or unknown; writes a local report. No cloud calls or remediation.
+
+The minimal implementation supports initialization, ping, tools/list and tools/call over newline-delimited JSON-RPC. A subprocess smoke test covers initialization, discovery and runbook search; full client interoperability is not certified. See https://modelcontextprotocol.io/specification/2025-11-25/server/tools and https://docs.ollama.com/api/generate.
 
 ## Implemented
 
@@ -41,4 +67,20 @@ Without a model, the demo uses explicit rules, not an LLM. With a model, evidenc
 
 ## Limits and next steps
 
-No AWS, Jira, or Statuspage integration yet; no external messages or infrastructure changes. Model success is tested with a mock, not a live installed model. Logs are synthetic; production use requires scoped credentials, sensitive-data redaction, input limits, stronger output validation, persistent audit storage, and evaluation on real incidents. Human review is required for proposed fixes and customer updates. This prototype does not automatically set incident severity or claim confirmed root cause.
+Read-only CloudWatch Logs support is implemented in `cloud_logs.py`, but live access is unverified: the local AWS CLI has no configured credentials. No Jira or Statuspage integration; no external messages or infrastructure changes. Model success is tested with a mock, not a live installed model. Production requires scoped credentials, sensitive-data redaction, stronger validation and evaluation on real incidents. Human review is required for fixes and customer updates.
+
+## Dummy CloudWatch-format cases
+
+Run `python cloud_logs.py`, then open `demo-results.html`. Five cases cover database errors, OOM termination, ambiguous timeouts, conflicting signals and empty logs. Logs are synthetic local fixtures, not fetched from AWS. The database case also simulates a model timeout. Metrics are never fabricated.
+
+## Live CloudWatch read
+
+Configure AWS CLI authentication locally, then run:
+
+```powershell
+python cloud_logs.py --live --log-group /your/test/log-group --region ca-central-1 --profile YOUR_PROFILE --minutes 15
+```
+
+Requires `logs:FilterLogEvents` on the selected log group. Reads up to 500 events in the chosen time window; discloses truncated results. No resources are created or modified. Failed AWS reads raise errors rather than substitute dummy data. Reports persist collected logs locally; start with non-sensitive test logs. Optional `--model INSTALLED_MODEL` enables Ollama summaries.
+
+AWS reference: https://docs.aws.amazon.com/cli/latest/reference/logs/filter-log-events.html
