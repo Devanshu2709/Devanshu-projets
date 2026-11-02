@@ -1,0 +1,7 @@
+cache/
+runs/
+__pycache__/
+demo-results.html
+demo-results.json
+file-demo/
+*.sqlite
