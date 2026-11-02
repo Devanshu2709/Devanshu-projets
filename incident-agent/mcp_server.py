@@ -23,7 +23,7 @@ def handle(message, state):
     if not isinstance(params,dict):return error(-32602,'Invalid params')
     if method=='initialize':
         state['initialized']=True
-        return response({'protocolVersion':'2025-11-25','capabilities':{'tools':{}},'serverInfo':{'name':'incident-investigator','version':'0.2.0'}})
+        return response({'protocolVersion':'2025-11-25','capabilities':{'tools':{}},'serverInfo':{'name':'sentinelflow-ai','version':'0.2.0'}})
     if method=='ping':return response({})
     if not state.get('ready'):return error(-32000,'Initialize first')
     if method=='tools/list':return response({'tools':TOOLS})
