@@ -2,6 +2,8 @@
 
 Standalone file quarantine and release-workflow prototype. Python standard library only. Independent of SentinelFlow AI; no LLM or cloud credentials are required.
 
+See the [architecture diagram and explanation](ARCHITECTURE.md).
+
 ## Run
 
 ```sh

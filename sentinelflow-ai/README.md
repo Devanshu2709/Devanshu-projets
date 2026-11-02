@@ -2,6 +2,8 @@
 
 Standalone AI-assisted cloud incident investigation project. Python standard library only.
 
+See the [architecture diagram and explanation](ARCHITECTURE.md).
+
 ## Run
 
 ```sh
